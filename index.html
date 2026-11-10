@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MERDEKA - Perang Taktis Fisika Edukasi HP</title>
+<style>
+  body {
+    margin: 0;
+    background: #1a1a2e;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding: 8px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 2px 0 6px 0;
+  }
+  .flag-wrap {
+    width: 40px;
+    height: 28px;
+    perspective: 200px;
+    flex-shrink: 0;
+  }
+  .flag {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-origin: left center;
+    animation: wave 2.2s ease-in-out infinite;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  }
+  .flag::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 50%;
+    background: #e11d1d;
+  }
+  .flag::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 50%;
+    background: #ffffff;
+  }
+  @keyframes wave {
+    0%   { transform: rotateY(0deg) skewY(0deg); }
+    25%  { transform: rotateY(12deg) skewY(-2deg); }
+    50%  { transform: rotateY(0deg) skewY(0deg); }
+    75%  { transform: rotateY(-12deg) skewY(2deg); }
+    100% { transform: rotateY(0deg) skewY(0deg); }
+  }
+  .title-block { text-align: center; }
+  .title-block h1 {
+    margin: 0; font-size: 18px; letter-spacing: 2px; color: #ffcc66;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+  .title-block p {
+    margin: 1px 0 0 0; font-size: 9px; letter-spacing: 1px; color: #ffd9a0;
+  }
+
+  .mode-select-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .mode-select-btn {
+    padding: 5px 10px; font-size: 10px; font-weight: bold; background: #334155; border: 1px solid #475569;
+    color: #cbd5e1; border-radius: 6px; cursor: pointer;
+  }
+  .mode-select-btn.active { background: #e11d1d; color: white; border-color: #f87171; }
+
+  #canvasWrap {
+    position: relative; border: 2px solid #334; border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8); width: 100%; max-width: 900px;
+    display: flex; justify-content: center; background: #000; overflow: hidden;
+  }
+  canvas { display: block; background: #87CEEB; width: 100%; height: auto; max-height: 45vh; object-fit: contain; }
+
+  .controls-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+    max-width: 900px;
+    margin-top: 6px;
+  }
+
+  .controls {
+    background: #16213e; padding: 8px 10px; border-radius: 8px;
+    box-sizing: border-box; box-shadow: 0 3px 10px rgba(0,0,0,0.6);
+    border: 1px solid #2a3b5c;
+  }
+  .controls h3 { margin: 0 0 4px 0; font-size: 11px; color: #ffcc66; text-align: center; }
+  .hp-bar-container {
+    background: #0f172a; border-radius: 4px; padding: 2px; margin-bottom: 4px;
+    border: 1px solid #334e68; text-align: center; font-size: 10px; font-weight: bold; color: #38bdf8;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  .mode-tab {
+    flex: 1; padding: 4px; font-size: 9px; font-weight: bold; background: #1e293b; border: 1px solid #334155;
+    color: #94a3b8; border-radius: 4px; cursor: pointer; text-align: center;
+  }
+  .mode-tab.active { background: #3b82f6; color: white; border-color: #60a5fa; }
+
+  .ctrl { display: flex; align-items: center; gap: 6px; font-size: 10px; margin-bottom: 4px; }
+  .ctrl label { min-width: 100px; color: #9ab; font-weight: 500; }
+  .ctrl input[type=range] { flex: 1; accent-color: #ff6633; cursor: pointer; height: 16px; }
+  .ctrl .val { min-width: 30px; text-align: right; color: #ffcc66; font-weight: bold; font-family: monospace; }
+  
+  .btn-group {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    margin-top: 6px;
+  }
+  button {
+    flex: 1; padding: 10px 8px; background: linear-gradient(180deg, #ff7733 0%, #ff4400 100%);
+    border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 3px 0 #aa2200;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    touch-action: manipulation;
+  }
+  button.p2-btn {
+    background: linear-gradient(180deg, #3399ff 0%, #0055ff 100%);
+    box-shadow: 0 3px 0 #0022aa;
+  }
+  button.heli-btn {
+    background: linear-gradient(180deg, #a855f7 0%, #7e22ce 100%);
+    box-shadow: 0 3px 0 #581c87;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:active { transform: translateY(2px); box-shadow: none; }
+
+  .modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.92); z-index: 1000; justify-content: center; align-items: center;
+    padding: 12px; box-sizing: border-box;
+  }
+  .quiz-content {
+    background: #16213e; border: 2px solid #334e68; padding: 16px; border-radius: 10px;
+    width: 100%; max-width: 450px; max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+  }
+  .quiz-content h2 { margin-top: 0; font-size: 15px; color: #ffcc66; text-align: center; }
+  .question-box { background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #ff6633; }
+  .question-box p { margin: 0 0 6px 0; font-size: 12px; line-height: 1.3; color: #f1f5f9; }
+  .quiz-options { display: flex; gap: 6px; }
+  .quiz-options button {
+    flex: 1; padding: 10px; font-size: 11px; background: #334155; box-shadow: 0 2px 0 #1e293b; margin: 0;
+  }
+  .quiz-options button.true-btn { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); box-shadow: 0 2px 0 #14532d; }
+  .quiz-options button.false-btn { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); box-shadow: 0 2px 0 #7f1d1d; }
+  .feedback { margin-top: 5px; font-size: 11px; font-weight: bold; }
+
+  @media (min-width: 768px) {
+    .controls-container { grid-template-columns: repeat(2, 1fr); }
+    .title-block h1 { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="flag-wrap"><div class="flag"></div></div>
+  <div class="title-block">
+    <h1>MERDEKA</h1>
+    <p>PERANG TAKTIS FISIKA PORTABEL</p>
+  </div>
+  <div class="flag-wrap"><div class="flag"></div></div>
+</div>
+
+<div class="mode-select-bar">
+  <button id="btnPvp" class="mode-select-btn active" onclick="setGameMode('pvp')">👥 DUAL PLAYER</button>
+  <button id="btnAi" class="mode-select-btn" onclick="setGameMode('ai')">🤖 VS LAWAN AI</button>
+</div>
+
+<div id="canvasWrap">
+  <canvas id="cv" width="900" height="500"></canvas>
+</div>
+
+<div class="controls-container">
+  <!-- P1: SEKUTU (KIRI) -->
+  <div class="controls">
+    <h3>P1 (KIRI)</h3>
+    <div class="hp-bar-container" id="p1HpText">HP P1: ❤️❤️❤️❤️❤️ | Peluru: 20</div>
+    
+    <div class="mode-tabs">
+      <div class="mode-tab active" id="p1TabTank" onclick="setP1Mode('tank')">TANK</div>
+      <div class="mode-tab" id="p1TabHeli" onclick="setP1Mode('heli')">HELIKOPTER</div>
+    </div>
+
+    <div id="p1SliderPanel">
+      <div class="ctrl">
+        <label>Sudut (°)</label>
+        <input type="range" id="p1Angle" min="0" max="90" value="45" step="1">
+        <span class="val" id="p1AngleV">45°</span>
+      </div>
+      <div class="ctrl">
+        <label>Kecepatan Tembak</label>
+        <input type="range" id="p1Speed" min="10" max="120" value="70" step="1">
+        <span class="val" id="p1SpeedV">70</span>
+      </div>
+      <div class="ctrl">
+        <label>Speed Kelincahan</label>
+        <input type="range" id="p1MoveSpeed" min="0.5" max="4.0" value="1.5" step="0.1">
+        <span class="val" id="p1MoveSpeedV">1.5</span>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button id="p1FireBtn">🔥 TEMBAK TANK</button>
+      <button id="p1HeliFireBtn" class="heli-btn" style="display:none;" onclick="fireP1Heli()">🚁 HELIKOPTER</button>
+    </div>
+  </div>
+
+  <!-- P2: LAWAN / AI (KANAN) -->
+  <div class="controls" style="border-color: #3b5c9a;">
+    <h3 id="p2HeaderTitle" style="color: #66d3ff;">P2 (KANAN)</h3>
+    <div class="hp-bar-container" id="p2HpText" style="color: #66d3ff;">HP P2: ❤️❤️❤️❤️❤️ | Peluru: 20</div>
+    
+    <div class="mode-tabs" id="p2TabContainer">
+      <div class="mode-tab active" id="p2TabTank" onclick="setP2Mode('tank')">TANK</div>
+      <div class="mode-tab" id="p2TabHeli" onclick="setP2Mode('heli')">HELIKOPTER</div>
+    </div>
+
+    <div id="p2SliderPanel">
+      <div class="ctrl">
+        <label>Sudut (°)</label>
+        <input type="range" id="p2Angle" min="0" max="90" value="45" step="1">
+        <span class="val" id="p2AngleV">45°</span>
+      </div>
+      <div class="ctrl">
+        <label>Kecepatan Tembak</label>
+        <input type="range" id="p2Speed" min="10" max="120" value="70" step="1">
+        <span class="val" id="p2SpeedV">70</span>
+      </div>
+      <div class="ctrl">
+        <label>Speed Kelincahan</label>
+        <input type="range" id="p2MoveSpeed" min="0.5" max="4.0" value="1.5" step="0.1">
+        <span class="val" id="p2MoveSpeedV">1.5</span>
+      </div>
+    </div>
+
+    <div class="btn-group" id="p2BtnGroup">
+      <button id="p2FireBtn" class="p2-btn">🎯 TEMBAK TANK</button>
+      <button id="p2HeliFireBtn" class="heli-btn" style="display:none;" onclick="fireP2Heli()">🚁 HELIKOPTER</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Kuis Aksi Khusus -->
+<div id="actionQuizModal" class="modal-overlay">
+  <div class="quiz-content" style="border-color: #ff6633;">
+    <h2 id="actionQuizTitle">UJIAN FISIKA MEDAN PERANG</h2>
+    <p id="actionQuizSubtitle" style="text-align: center; color: #ffd9a0; font-size: 11px; margin-bottom: 10px;"></p>
+    <div id="actionQuizBox" class="question-box"></div>
+    <div class="quiz-options">
+      <button class="true-btn" onclick="answerActionQuiz(true)">BENAR</button>
+      <button class="false-btn" onclick="answerActionQuiz(false)">SALAH</button>
+    </div>
+    <div id="actionQuizFeedback" class="feedback" style="margin-top: 8px; text-align: center;"></div>
+  </div>
+</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const GROUND_Y = H * 0.65;
+
+let gameMode = 'pvp';
+
+function setGameMode(mode) {
+  gameMode = mode;
+  document.getElementById('btnPvp').classList.toggle('active', mode === 'pvp');
+  document.getElementById('btnAi').classList.toggle('active', mode === 'ai');
+  
+  if (mode === 'ai') {
+    document.getElementById('p2HeaderTitle').textContent = 'AI LAWAN (KOMPUTER)';
+    document.getElementById('p2TabContainer').style.display = 'none';
+    document.getElementById('p2SliderPanel').style.display = 'none';
+    document.getElementById('p2BtnGroup').style.display = 'none';
+  } else {
+    document.getElementById('p2HeaderTitle').textContent = 'P2 (KANAN)';
+    document.getElementById('p2TabContainer').style.display = 'flex';
+    document.getElementById('p2SliderPanel').style.display = 'block';
+    document.getElementById('p2BtnGroup').style.display = 'flex';
+  }
+}
+
+let audioCtx, distortionNode;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    distortionNode = audioCtx.createWaveShaper();
+    const k = 50, n = 44100, curve = new Float32Array(n), deg = Math.PI / 180;
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2) / n - 1;
+      curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+    }
+    distortionNode.curve = curve;
+    distortionNode.oversample = '4x';
+    distortionNode.connect(audioCtx.destination);
+  }
+}
+
+function playMegaExplosionSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const subOsc = audioCtx.createOscillator(), subGain = audioCtx.createGain();
+  subOsc.type = 'sine';
+  subOsc.frequency.setValueAtTime(140, now);
+  subOsc.frequency.exponentialRampToValueAtTime(15, now + 1.5);
+  subGain.gain.setValueAtTime(1.2, now);
+  subGain.gain.exponentialRampToValueAtTime(0.01, now + 1.8);
+  subOsc.connect(subGain); subGain.connect(distortionNode);
+  subOsc.start(now); subOsc.stop(now + 1.8);
+}
+
+function playHitSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(220, now);
+  osc.frequency.exponentialRampToValueAtTime(60, now + 0.3);
+  gain.gain.setValueAtTime(0.8, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(now); osc.stop(now + 0.3);
+}
+
+function playShootSound() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+  gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+}
+
+const physicsQuizPool = [
+  { q: "Pada Gerak Lurus Beraturan (GLB), kecepatan benda bernilai tetap dan percepatannya nol.", answer: true, explanation: "Benar! Tidak ada perubahan kecepatan pada GLB." },
+  { q: "Sebuah mobil yang direm mendadak hingga berhenti mengalami GLB dipercepat.", answer: false, explanation: "Salah! Pengereman adalah GLBB diperlambat." },
+  { q: "Besar percepatan pada Gerak Lurus Berubah Beraturan (GLBB) bernilai tetap/konstan.", answer: true, explanation: "Benar! Ciri utama GLBB adalah percepatan konstan." },
+  { q: "Grafik hubungan kecepatan (v) terhadap waktu (t) pada GLBB dipercepat berupa garis lurus ke atas.", answer: true, explanation: "Benar! Kecepatan bertambah secara beraturan seiring waktu." },
+  { q: "Pada Gerak Jatuh Bebas (GJB), benda jatuh dengan kecepatan awal nol dan dipengaruhi gravitasi.", answer: true, explanation: "Benar! v0 = 0 pada GJB." },
+  { q: "Waktu jatuh benda pada Gerak Jatuh Bebas di ruang hampa dipengaruhi oleh berat atau massa benda.", answer: false, explanation: "Salah! Massa benda tidak mempengaruhi percepatan jatuh bebas di ruang hampa." },
+  { q: "Pada Gerak Vertikal Ke Atas (GVA), percepatan benda bernilai positif searah gerak naik.", answer: false, explanation: "Salah! Percepatan bernilai negatif (-g) karena melawan arah gerak ke atas." },
+  { q: "Di titik tertinggi lintasan Gerak Vertikal Ke Atas, kecepatan benda bernilai nol sesaat.", answer: true, explanation: "Benar! Sesaat di puncak, benda berhenti sebelum turun kembali." },
+  { q: "Gerak Vertikal Ke Bawah (GVB) memiliki kecepatan awal yang nilainya lebih besar dari nol (v0 > 0).", answer: true, explanation: "Benar! Benda dilempar ke bawah dengan kecepatan awal tertentu." },
+  { q: "Pada Gerak Parabola, komponen kecepatan horizontal (vx) mengalami perubahan akibat gravitasi.", answer: false, explanation: "Salah! Sumbu horizontal bersifat GLB (vx konstan tanpa hambatan udara)." },
+  { q: "Lintasan yang ditempuh oleh benda pada gerak parabola berbentuk kurva melengkung simetris atau parabolik.", answer: true, explanation: "Benar! Perpaduan gerak lurus beraturan dan berubah beraturan membentuk parabola." },
+  { q: "Jangkauan maksimum pada gerak parabola tanpa hambatan udara dicapai pada sudut elevasi 45 derajat.", answer: true, explanation: "Benar! Sudut 45° adalah sudut optimal jangkauan terjauh." },
+  { q: "Komponen kecepatan vertikal (vy) benda bernilai nol tepat di titik tertinggi lintasan parabola.", answer: true, explanation: "Benar! Puncak parabola dicapai saat kecepatan vertikalnya nol." },
+  { q: "Waktu total benda di udara pada gerak parabola dua kali lipat dari waktu yang dibutuhkan untuk mencapai titik tertinggi.", answer: true, explanation: "Benar! Waktu naik sama dengan waktu turun pada kasus simetris." }
+];
+
+let p1X = 150, p1Dir = 1, p1Hp = 5, p1Active = true, p1Ammo = 20;
+let p2X = 750, p2Dir = -1, p2Hp = 5, p2Active = true, p2Ammo = 20;
+
+let p1Heli = { active: false, x: 150, y: 75, dir: 1, hp: 10 };
+let p2Heli = { active: false, x: 750, y: 75, dir: -1, hp: 10 };
+
+let p1Mode = 'tank', p2Mode = 'tank';
+let p1Params = { tank: { angle: 45, speed: 70, moveSpeed: 1.5 }, heli: { angle: 15, speed: 60, moveSpeed: 2.2 } };
+let p2Params = { tank: { angle: 45, speed: 70, moveSpeed: 1.5 }, heli: { angle: 15, speed: 60, moveSpeed: 2.2 } };
+
+let shakeTime = 0, shakeMag = 0;
+let currentActionType = null; 
+let targetPlayerForQuiz = null;
+let currentQuizItem = null;
+let firstTryCorrect = true;
+let aiShootTimer = 0;
+
+function setP1Mode(mode) {
+  p1Mode = mode;
+  document.getElementById('p1TabTank').classList.toggle('active', mode === 'tank');
+  document.getElementById('p1TabHeli').classList.toggle('active', mode === 'heli');
+  
+  document.getElementById('p1Angle').value = p1Params[mode].angle;
+  document.getElementById('p1Speed').value = p1Params[mode].speed;
+  document.getElementById('p1MoveSpeed').value = p1Params[mode].moveSpeed;
+
+  document.getElementById('p1AngleV').textContent = p1Params[mode].angle + '°';
+  document.getElementById('p1SpeedV').textContent = p1Params[mode].speed;
+  document.getElementById('p1MoveSpeedV').textContent = p1Params[mode].moveSpeed;
+  
+  document.getElementById('p1FireBtn').style.display = mode === 'tank' ? 'block' : 'none';
+  document.getElementById('p1HeliFireBtn').style.display = (mode === 'heli' && p1Heli.active) ? 'block' : 'none';
+}
+
+function setP2Mode(mode) {
+  p2Mode = mode;
+  document.getElementById('p2TabTank').classList.toggle('active', mode === 'tank');
+  document.getElementById('p2TabHeli').classList.toggle('active', mode === 'heli');
+  
+  document.getElementById('p2Angle').value = p2Params[mode].angle;
+  document.getElementById('p2Speed').value = p2Params[mode].speed;
+  document.getElementById('p2MoveSpeed').value = p2Params[mode].moveSpeed;
+
+  document.getElementById('p2AngleV').textContent = p2Params[mode].angle + '°';
+  document.getElementById('p2SpeedV').textContent = p2Params[mode].speed;
+  document.getElementById('p2MoveSpeedV').textContent = p2Params[mode].moveSpeed;
+  
+  document.getElementById('p2FireBtn').style.display = mode === 'tank' ? 'block' : 'none';
+  document.getElementById('p2HeliFireBtn').style.display = (mode === 'heli' && p2Heli.active) ? 'block' : 'none';
+}
+
+const p1AngleEl = document.getElementById('p1Angle'), p1SpeedEl = document.getElementById('p1Speed'), p1MoveSpeedEl = document.getElementById('p1MoveSpeed');
+const p2AngleEl = document.getElementById('p2Angle'), p2SpeedEl = document.getElementById('p2Speed'), p2MoveSpeedEl = document.getElementById('p2MoveSpeed');
+const p1AngleV = document.getElementById('p1AngleV'), p1SpeedV = document.getElementById('p1SpeedV'), p1MoveSpeedV = document.getElementById('p1MoveSpeedV');
+const p2AngleV = document.getElementById('p2AngleV'), p2SpeedV = document.getElementById('p2SpeedV'), p2MoveSpeedV = document.getElementById('p2MoveSpeedV');
+const p1HpText = document.getElementById('p1HpText');
+const p2HpText = document.getElementById('p2HpText');
+
+function updateParams() {
+  p1Params[p1Mode].angle = +p1AngleEl.value;
+  p1Params[p1Mode].speed = +p1SpeedEl.value;
+  p1Params[p1Mode].moveSpeed = +p1MoveSpeedEl.value;
+
+  p2Params[p2Mode].angle = +p2AngleEl.value;
+  p2Params[p2Mode].speed = +p2SpeedEl.value;
+  p2Params[p2Mode].moveSpeed = +p2MoveSpeedEl.value;
+
+  p1AngleV.textContent = p1Params[p1Mode].angle + '°';
+  p1SpeedV.textContent = p1Params[p1Mode].speed;
+  p1MoveSpeedV.textContent = p1Params[p1Mode].moveSpeed;
+
+  p2AngleV.textContent = p2Params[p2Mode].angle + '°';
+  p2SpeedV.textContent = p2Params[p2Mode].speed;
+  p2MoveSpeedV.textContent = p2Params[p2Mode].moveSpeed;
+}
+[p1AngleEl, p1SpeedEl, p1MoveSpeedEl, p2AngleEl, p2SpeedEl, p2MoveSpeedEl].forEach(el => el.addEventListener('input', updateParams));
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    initAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (p1Active) fireP1();
+  } else if (e.code === 'Enter') {
+    e.preventDefault();
+    initAudio();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (p2Active && gameMode === 'pvp') fireP2();
+  }
+});
+
+let p1Projectiles = []; 
+let p2Projectiles = []; 
+let explosions = [], particles = [];
+
+document.getElementById('p1FireBtn').addEventListener('click', () => {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (p1Active) fireP1();
+});
+
+document.getElementById('p2FireBtn').addEventListener('click', () => {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (p2Active && gameMode === 'pvp') fireP2();
+});
+
+function fireP1Heli() {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (p1Heli.active) {
+    const rad = p1Params.heli.angle * Math.PI / 180;
+    const sp = p1Params.heli.speed * 0.15;
+    p1Projectiles.push({ x: p1Heli.x + 20, y: p1Heli.y, vx: Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: true });
+    playShootSound();
+  }
+}
+
+function fireP2Heli() {
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (p2Heli.active) {
+    const rad = p2Params.heli.angle * Math.PI / 180;
+    const sp = p2Params.heli.speed * 0.15;
+    p2Projectiles.push({ x: p2Heli.x - 20, y: p2Heli.y, vx: -Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: true });
+    playShootSound();
+  }
+}
+
+function fireP1() {
+  if (p1Ammo <= 0) {
+    triggerActionQuiz('ammo_refill', 1);
+    return;
+  }
+  p1Ammo--;
+  updateHpDisplay();
+
+  const rad = p1Params.tank.angle * Math.PI / 180;
+  const pivotX = p1X, pivotY = GROUND_Y - 25, barrelLength = 50;
+  const muzzleX = pivotX + Math.cos(rad) * barrelLength;
+  const muzzleY = pivotY - Math.sin(rad) * barrelLength;
+  const sp = p1Params.tank.speed * 0.15;
+
+  p1Projectiles.push({ x: muzzleX, y: muzzleY, vx: Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: false });
+  explosions.push({ x: muzzleX, y: muzzleY, t: 0, maxT: 10, size: 20 });
+  playShootSound();
+}
+
+function fireP2() {
+  if (p2Ammo <= 0) {
+    if (gameMode === 'pvp') triggerActionQuiz('ammo_refill', 2);
+    else p2Ammo = 20; 
+    return;
+  }
+  p2Ammo--;
+  updateHpDisplay();
+
+  let angleDeg = 45;
+  let speedVal = 70;
+
+  if (gameMode === 'ai') {
+    const dx = p1X - p2X;
+    const dy = (GROUND_Y - 20) - (GROUND_Y - 25);
+    const g = 0.2;
+    speedVal = 75 + Math.random() * 15;
+    const v = speedVal * 0.15;
+    const v2 = v * v;
+    const term = v2 * v2 - g * (g * (dx * dx) + 2 * dy * v2);
+    if (term >= 0) {
+      const rad = Math.atan((v2 - Math.sqrt(term)) / (g * Math.abs(dx)));
+      angleDeg = (rad * 180 / Math.PI) + (Math.random() * 8 - 4);
+      if (isNaN(angleDeg) || angleDeg < 10) angleDeg = 40 + Math.random() * 20;
+    } else {
+      angleDeg = 45 + Math.random() * 10;
+    }
+  } else {
+    angleDeg = p2Params.tank.angle;
+    speedVal = p2Params.tank.speed;
+  }
+
+  const rad = angleDeg * Math.PI / 180;
+  const pivotX = p2X, pivotY = GROUND_Y - 25, barrelLength = 50;
+  const muzzleX = pivotX - Math.cos(rad) * barrelLength;
+  const muzzleY = pivotY - Math.sin(rad) * barrelLength;
+  const sp = speedVal * 0.15;
+
+  p2Projectiles.push({ x: muzzleX, y: muzzleY, vx: -Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: false });
+  explosions.push({ x: muzzleX, y: muzzleY, t: 0, maxT: 10, size: 20 });
+  playShootSound();
+}
+
+function triggerActionQuiz(type, playerNum) {
+  currentActionType = type;
+  targetPlayerForQuiz = playerNum;
+  firstTryCorrect = true;
+  loadNewQuizQuestion();
+  
+  const title = playerNum === 1 ? "PEMAIN 1: " : "PEMAIN 2: ";
+  if (type === 'ammo_refill') {
+    document.getElementById('actionQuizTitle').textContent = title + "AMUNISI MERIAM HABIS (0/20)";
+    document.getElementById('actionQuizSubtitle').textContent = "Jawab benar langsung dapat 20 peluru baru. Jika salah, jawab sampai benar (bonus 10 peluru).";
+  } else {
+    document.getElementById('actionQuizTitle').textContent = title + "FASILITAS HANCUR TOTAL!";
+    document.getElementById('actionQuizSubtitle').textContent = "Jawab benar pada percobaan pertama untuk bonus HELIKOPTER! Jika salah, tank tetap dipulihkan setelah jawaban benar.";
+  }
+  document.getElementById('actionQuizModal').style.display = 'flex';
+}
+
+function loadNewQuizQuestion() {
+  currentQuizItem = physicsQuizPool[Math.floor(Math.random() * physicsQuizPool.length)];
+  document.getElementById('actionQuizBox').innerHTML = `<p><strong>Soal:</strong> ${currentQuizItem.q}</p>`;
+  document.getElementById('actionQuizFeedback').innerHTML = '';
+}
+
+function answerActionQuiz(choice) {
+  const feedbackEl = document.getElementById('actionQuizFeedback');
+  if (choice === currentQuizItem.answer) {
+    if (firstTryCorrect) {
+      feedbackEl.innerHTML = `<span style="color:#4ade80;">✔ Jawaban Benar! ${currentQuizItem.explanation}</span>`;
+      setTimeout(() => {
+        document.getElementById('actionQuizModal').style.display = 'none';
+        if (currentActionType === 'ammo_refill') {
+          if (targetPlayerForQuiz === 1) p1Ammo += 20; else p2Ammo += 20;
+        } else {
+          if (targetPlayerForQuiz === 1) {
+            p1Hp = 5; p1Active = true; p1X = 150;
+            p1Heli = { active: true, x: 150, y: 75, dir: 1, hp: 10 };
+            setP1Mode('tank');
+          } else {
+            p2Hp = 5; p2Active = true; p2X = 750;
+            p2Heli = { active: true, x: 750, y: 75, dir: -1, hp: 10 };
+            setP2Mode('tank');
+          }
+        }
+        updateHpDisplay();
+      }, 1500);
+    } else {
+      feedbackEl.innerHTML = `<span style="color:#fbbf24;">✔ Akhirnya Benar! ${currentQuizItem.explanation}</span>`;
+      setTimeout(() => {
+        document.getElementById('actionQuizModal').style.display = 'none';
+        if (currentActionType === 'ammo_refill') {
+          if (targetPlayerForQuiz === 1) p1Ammo += 10; else p2Ammo += 10;
+        } else {
+          if (targetPlayerForQuiz === 1) { p1Hp = 5; p1Active = true; p1X = 150; setP1Mode('tank'); }
+          else { p2Hp = 5; p2Active = true; p2X = 750; setP2Mode('tank'); }
+        }
+        updateHpDisplay();
+      }, 1500);
+    }
+  } else {
+    firstTryCorrect = false;
+    feedbackEl.innerHTML = `<span style="color:#f87171;">✖ Salah! ${currentQuizItem.explanation}<br><b>Soal diganti, jawab terus sampai benar!</b></span>`;
+    setTimeout(() => { loadNewQuizQuestion(); }, 1600);
+  }
+}
+
+function handleTankHit(tankNum, x, y) {
+  shakeTime = 20;
+  shakeMag = 8;
+
+  if (tankNum === 2) {
+    p2Hp--;
+    updateHpDisplay();
+    if (p2Hp <= 0) {
+      // Cek apakah HELIKOPTER P2 masih aktif. Jika masih aktif, tank hancur tapi kuis belum muncul sampai helikopter juga hancur.
+      if (!p2Heli.active) {
+        createMegaDestruction(x, y);
+        p2Active = false;
+        if (gameMode === 'pvp') {
+          setTimeout(() => { triggerActionQuiz('respawn', 2); }, 800);
+        } else {
+          setTimeout(() => {
+            p2Hp = 5; p2Active = true; p2X = 750;
+            p2Ammo = 20;
+            updateHpDisplay();
+          }, 1200);
+        }
+      } else {
+        createNormalExplosion(x, y);
+        p2Active = false; // Tank hancur, tapi helikopter masih ada
+      }
+    } else {
+      playHitSound();
+      createNormalExplosion(x, y);
+    }
+  } else {
+    p1Hp--;
+    updateHpDisplay();
+    if (p1Hp <= 0) {
+      // Kuis P1 muncul hanya jika Tank DAN Helikopter P1 sudah hancur total
+      if (!p1Heli.active) {
+        createMegaDestruction(x, y);
+        p1Active = false;
+        document.getElementById('p1HeliFireBtn').style.display = 'none';
+        setTimeout(() => { triggerActionQuiz('respawn', 1); }, 800);
+      } else {
+        createNormalExplosion(x, y);
+        p1Active = false;
+      }
+    } else {
+      playHitSound();
+      createNormalExplosion(x, y);
+    }
+  }
+}
+
+function updateHpDisplay() {
+  p1HpText.textContent = `HP P1: ${p1Active ? '❤️'.repeat(p1Hp) + '🖤'.repeat(5 - p1Hp) : '❌'} | Peluru: 🚀 ${p1Ammo}/20`;
+  const p2Label = gameMode === 'ai' ? 'AI' : 'P2';
+  p2HpText.textContent = `HP ${p2Label}: ${p2Active ? '❤️'.repeat(p2Hp) + '🖤'.repeat(5 - p2Hp) : '❌'} | Peluru: 🚀 ${p2Ammo}/20`;
+  
+  document.getElementById('p1HeliFireBtn').style.display = (p1Mode === 'heli' && p1Heli.active) ? 'block' : 'none';
+  document.getElementById('p2HeliFireBtn').style.display = (gameMode === 'pvp' && p2Mode === 'heli' && p2Heli.active) ? 'block' : 'none';
+}
+
+function createMegaDestruction(x, y) {
+  shakeTime = 40;
+  shakeMag = 18;
+  playMegaExplosionSound();
+  
+  explosions.push({ x, y, t: 0, maxT: 40, size: 130, isShockwave: true });
+  for (let i = 0; i < 70; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 14;
+    particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 3, life: 1.0, size: 15 });
+  }
+}
+
+function createNormalExplosion(x, y) {
+  explosions.push({ x, y, t: 0, maxT: 20, size: 45 });
+  for (let i = 0; i < 15; i++) {
+    particles.push({ x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 1.0, size: 10 });
+  }
+}
+
+function drawSky() {
+  const g = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  g.addColorStop(0, '#87CEEB'); g.addColorStop(1, '#cfe8f7');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, GROUND_Y);
+}
+function drawSun() {
+  ctx.beginPath(); ctx.arc(70, 60, 25, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffe066'; ctx.fill();
+}
+function drawGround() {
+  const g = ctx.createLinearGradient(0, GROUND_Y, 0, H);
+  g.addColorStop(0, '#6b8e23'); g.addColorStop(1, '#3d5a1a');
+  ctx.fillStyle = g; ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+}
+function drawTrees() {
+  [{ x: 420, s: 1.0 }, { x: 480, s: 1.2 }].forEach(t => {
+    ctx.fillStyle = '#5c3a1e'; ctx.fillRect(t.x - 5, GROUND_Y - 45, 10, 45);
+    ctx.fillStyle = '#2e6b2e'; ctx.beginPath(); ctx.arc(t.x, GROUND_Y - 55, 25 * t.s, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
+function drawHelicopter(h, isP1) {
+  if (!h.active) return;
+  ctx.save();
+  ctx.translate(h.x, h.y + Math.sin(Date.now() * 0.008) * 6);
+  
+  ctx.fillStyle = isP1 ? '#335533' : '#553333';
+  ctx.beginPath(); ctx.ellipse(0, 0, 30, 12, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#88ccff';
+  ctx.beginPath(); ctx.arc(isP1 ? 12 : -12, -2, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#222'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-45, -12); ctx.lineTo(45, -12); ctx.stroke();
+  ctx.fillRect(-35, -8, 4, 16);
+  ctx.strokeStyle = '#111'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-15, 12); ctx.lineTo(-10, 18); ctx.moveTo(15, 12); ctx.lineTo(10, 18); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-20, 18); ctx.lineTo(20, 18); ctx.stroke();
+
+  ctx.fillStyle = '#ffcc66';
+  ctx.font = 'bold 9px monospace';
+  ctx.fillText(`HP:${h.hp}/10`, -15, -18);
+
+  ctx.restore();
+}
+
+function drawTankP1(x) {
+  if (!p1Active) return;
+  const y = GROUND_Y - 20;
+  ctx.fillStyle = '#2b2b2b';
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x - 24 + i*14, y + 18, 7, 0, Math.PI*2); ctx.fill(); }
+  ctx.fillStyle = p1Hp <= 2 ? '#8b2500' : '#3a5f3a'; 
+  ctx.beginPath(); ctx.roundRect(x - 35, y - 5, 70, 22, 5); ctx.fill();
+  ctx.fillStyle = p1Hp <= 2 ? '#b22222' : '#4a7a4a'; ctx.beginPath(); ctx.arc(x, y - 5, 14, Math.PI, 0); ctx.fill();
+  
+  if (p1Hp <= 2) {
+    ctx.fillStyle = 'rgba(50,50,50,0.6)';
+    ctx.beginPath(); ctx.arc(x + (Math.random()*10 - 5), y - 25, 8 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+  }
+
+  const rad = p1Params.tank.angle * Math.PI / 180;
+  ctx.save(); ctx.translate(x, y - 5); ctx.rotate(-rad);
+  ctx.fillStyle = '#2e4a2e'; ctx.fillRect(0, -4, 45, 8);
+  ctx.restore();
+}
+
+function drawCannonP2(x) {
+  if (!p2Active) return;
+  const y = GROUND_Y - 20;
+  ctx.fillStyle = '#2b2b2b';
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(x - 24 + i*14, y + 18, 7, 0, Math.PI*2); ctx.fill(); }
+  ctx.fillStyle = p2Hp <= 2 ? '#8b2500' : '#5f3a3a'; 
+  ctx.beginPath(); ctx.roundRect(x - 35, y - 5, 70, 22, 5); ctx.fill();
+  ctx.fillStyle = p2Hp <= 2 ? '#b22222' : '#7a4a4a'; ctx.beginPath(); ctx.arc(x, y - 5, 14, Math.PI, 0); ctx.fill();
+  
+  if (p2Hp <= 2) {
+    ctx.fillStyle = 'rgba(50,50,50,0.6)';
+    ctx.beginPath(); ctx.arc(x + (Math.random()*10 - 5), y - 25, 8 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+  }
+
+  const rad = 45 * Math.PI / 180;
+  ctx.save(); ctx.translate(x, y - 5); ctx.rotate(rad);
+  ctx.fillStyle = '#222'; ctx.fillRect(-45, -4, 45, 8);
+  ctx.restore();
+}
+
+function drawCannonball(p, color) {
+  if(!p) return;
+  ctx.save();
+  p.trail.forEach((t, i) => {
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(t.x, t.y, 4 * (i/p.trail.length), 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.fillStyle = p.isHeliShot ? '#a855f7' : '#fff'; 
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.isHeliShot ? 6 : 5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function update() {
+  if (shakeTime > 0) shakeTime--;
+
+  if (p1Active) {
+    p1X += p1Dir * p1Params.tank.moveSpeed;
+    if (p1X > 380) p1Dir = -1;
+    if (p1X < 50) p1Dir = 1;
+  }
+
+  if (p2Active) {
+    p2X += p2Dir * p2Params.tank.moveSpeed;
+    if (p2X > 850) p2Dir = -1;
+    if (p2X < 520) p2Dir = 1;
+  }
+
+  if (gameMode === 'ai' && p2Active) {
+    aiShootTimer++;
+    if (aiShootTimer > 130) {
+      aiShootTimer = 0;
+      fireP2();
+    }
+  }
+
+  if (p1Heli.active) {
+    p1Heli.x += p1Heli.dir * p1Params.heli.moveSpeed;
+    if (p1Heli.x > 400) p1Heli.dir = -1;
+    if (p1Heli.x < 50) p1Heli.dir = 1;
+  }
+  if (p2Heli.active) {
+    p2Heli.x += p2Heli.dir * p2Params.heli.moveSpeed;
+    if (p2Heli.x > 850) p2Heli.dir = -1;
+    if (p2Heli.x < 500) p2Heli.dir = 1;
+  }
+
+  // Update Peluru P1
+  for (let i = p1Projectiles.length - 1; i >= 0; i--) {
+    let p = p1Projectiles[i];
+    p.trail.push({ x: p.x, y: p.y });
+    if (p.trail.length > 15) p.trail.shift();
+    
+    p.vy += 0.2; 
+    p.x += p.vx; p.y += p.vy;
+
+    let hit = false;
+    if (p2Heli.active && Math.hypot(p.x - p2Heli.x, p.y - p2Heli.y) < 30) {
+      p2Heli.hp--;
+      createNormalExplosion(p2Heli.x, p2Heli.y);
+      if (p2Heli.hp <= 0) {
+        p2Heli.active = false;
+        createMegaDestruction(p2Heli.x, p2Heli.y);
+        document.getElementById('p2HeliFireBtn').style.display = 'none';
+        // Cek jika Tank P2 juga sudah hancur, picu kuis respawn total
+        if (!p2Active && gameMode === 'pvp') {
+          setTimeout(() => { triggerActionQuiz('respawn', 2); }, 800);
+        }
+      }
+      hit = true;
+    } else if (p2Active && Math.hypot(p.x - p2X, p.y - (GROUND_Y - 20)) < 35) {
+      handleTankHit(2, p2X, GROUND_Y - 20);
+      hit = true;
+    } else if (p.y > GROUND_Y || p.x > W || p.x < 0) {
+      createNormalExplosion(p.x, Math.min(p.y, GROUND_Y));
+      hit = true;
+    }
+    if (hit) p1Projectiles.splice(i, 1);
+  }
+
+  // Update Peluru P2
+  for (let i = p2Projectiles.length - 1; i >= 0; i--) {
+    let p = p2Projectiles[i];
+    p.trail.push({ x: p.x, y: p.y });
+    if (p.trail.length > 15) p.trail.shift();
+    
+    p.vy += 0.2; 
+    p.x += p.vx; p.y += p.vy;
+
+    let hit = false;
+    if (p1Heli.active && Math.hypot(p.x - p1Heli.x, p.y - p1Heli.y) < 30) {
+      p1Heli.hp--;
+      createNormalExplosion(p1Heli.x, p1Heli.y);
+      if (p1Heli.hp <= 0) {
+        p1Heli.active = false;
+        createMegaDestruction(p1Heli.x, p1Heli.y);
+        document.getElementById('p1HeliFireBtn').style.display = 'none';
+        if (!p1Active) {
+          setTimeout(() => { triggerActionQuiz('respawn', 1); }, 800);
+        }
+      }
+      hit = true;
+    } else if (p1Active && Math.hypot(p.x - p1X, p.y - (GROUND_Y - 20)) < 35) {
+      handleTankHit(1, p1X, GROUND_Y - 20);
+      hit = true;
+    } else if (p.y > GROUND_Y || p.x < 0 || p.x > W) {
+      createNormalExplosion(p.x, Math.min(p.y, GROUND_Y));
+      hit = true;
+    }
+    if (hit) p2Projectiles.splice(i, 1);
+  }
+
+  explosions.forEach(e => e.t++);
+  explosions = explosions.filter(e => e.t <= e.maxT);
+  particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; });
+  particles = particles.filter(p => p.life > 0);
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  
+  ctx.save();
+  if (shakeTime > 0) {
+    ctx.translate((Math.random() - 0.5) * shakeMag, (Math.random() - 0.5) * shakeMag);
+  }
+
+  drawSky(); drawSun(); drawTrees(); drawGround(); 
+  drawTankP1(p1X); 
+  drawCannonP2(p2X);
+  drawHelicopter(p1Heli, true);
+  drawHelicopter(p2Heli, false);
+
+  p1Projectiles.forEach(p => drawCannonball(p, 'rgba(255, 200, 0, 0.9)'));
+  p2Projectiles.forEach(p => drawCannonball(p, 'rgba(0, 150, 255, 0.9)'));
+
+  explosions.forEach(e => {
+    ctx.save();
+    if (e.isShockwave) {
+      ctx.strokeStyle = `rgba(255, 255, 255, ${1 - e.t/e.maxT})`;
+      ctx.lineWidth = 4 * (1 - e.t/e.maxT);
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.size * (e.t/10), 0, Math.PI * 2); ctx.stroke();
+    } else {
+      ctx.fillStyle = `rgba(255, 100, 0, ${1 - e.t/e.maxT})`;
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.size * (1 + e.t/10), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  particles.forEach(p => {
+    ctx.fillStyle = `rgba(255, 120, 0, ${p.life})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function gameLoop() {
+  update();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>
