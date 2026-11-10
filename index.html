@@ -159,9 +159,10 @@
     background: #16213e; border: 2px solid #334e68; padding: 16px; border-radius: 10px;
     width: 100%; max-width: 450px; max-height: 85vh; overflow-y: auto;
     box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+    text-align: center;
   }
   .quiz-content h2 { margin-top: 0; font-size: 15px; color: #ffcc66; text-align: center; }
-  .question-box { background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #ff6633; }
+  .question-box { background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 4px solid #ff6633; text-align: left; }
   .question-box p { margin: 0 0 6px 0; font-size: 12px; line-height: 1.3; color: #f1f5f9; }
   .quiz-options { display: flex; gap: 6px; }
   .quiz-options button {
@@ -203,9 +204,9 @@
     <h3>P1 (KIRI)</h3>
     <div class="hp-bar-container" id="p1HpText">HP P1: ❤️❤️❤️❤️❤️ | Peluru: 20</div>
     
-    <div class="mode-tabs">
+    <div class="mode-tabs" id="p1TabContainer">
       <div class="mode-tab active" id="p1TabTank" onclick="setP1Mode('tank')">TANK</div>
-      <div class="mode-tab" id="p1TabHeli" onclick="setP1Mode('heli')">HELIKOPTER</div>
+      <div class="mode-tab" id="p1TabHeli" onclick="setP1Mode('heli')" style="display:none;">HELIKOPTER</div>
     </div>
 
     <div id="p1SliderPanel">
@@ -239,7 +240,7 @@
     
     <div class="mode-tabs" id="p2TabContainer">
       <div class="mode-tab active" id="p2TabTank" onclick="setP2Mode('tank')">TANK</div>
-      <div class="mode-tab" id="p2TabHeli" onclick="setP2Mode('heli')">HELIKOPTER</div>
+      <div class="mode-tab" id="p2TabHeli" onclick="setP2Mode('heli')" style="display:none;">HELIKOPTER</div>
     </div>
 
     <div id="p2SliderPanel">
@@ -281,6 +282,15 @@
   </div>
 </div>
 
+<!-- Modal Game Over / Kenaikan Level (Sama untuk pemain dan AI) -->
+<div id="gameOverModal" class="modal-overlay">
+  <div class="quiz-content" style="border-color: #ef4444;">
+    <h2 style="color: #f87171;" id="gameOverTitle">💀 GAME OVER - TANK HANCUR</h2>
+    <p id="gameOverText" style="color: #f1f5f9; font-size: 12px; margin: 15px 0;">Pertahanan telah runtuh! Jawab kuis fisika sampai benar untuk melanjutkan atau menaikkan tahap pertempuran.</p>
+    <button onclick="triggerGameOverQuiz()" style="background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); box-shadow: 0 3px 0 #7f1d1d; padding: 12px; width: 100%; font-size: 12px;">JAWAB KUIS PEMULIHAN 🧠</button>
+  </div>
+</div>
+
 <script>
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -288,16 +298,22 @@ const W = cv.width, H = cv.height;
 const GROUND_Y = H * 0.65;
 
 let gameMode = 'pvp';
+let aiStage = 1; // 1: Tank vs Tank, 2: 2 Tank + Heli, 3: 1 Tank + Heli Jelajah
+let playerWeaponTier = 1; // Tingkat kecanggihan meriam pemain (1, 2, 3)
+let defeatedPlayerNum = null; // Menyimpan siapa yang kalah (1 atau 2)
 
 function setGameMode(mode) {
   gameMode = mode;
   document.getElementById('btnPvp').classList.toggle('active', mode === 'pvp');
   document.getElementById('btnAi').classList.toggle('active', mode === 'ai');
   
+  aiStage = 1;
+  playerWeaponTier = 1;
+
   if (mode === 'ai') {
-    document.getElementById('p2HeaderTitle').textContent = 'AI LAWAN (KOMPUTER)';
+    document.getElementById('p2HeaderTitle').textContent = 'AI LAWAN (TAHAP 1)';
     document.getElementById('p2TabContainer').style.display = 'none';
-    document.getElementById('p2SliderPanel').style.display = 'none';
+    document.getElementById('p2SliderPanel').style.display = 'block';
     document.getElementById('p2BtnGroup').style.display = 'none';
   } else {
     document.getElementById('p2HeaderTitle').textContent = 'P2 (KANAN)';
@@ -305,6 +321,7 @@ function setGameMode(mode) {
     document.getElementById('p2SliderPanel').style.display = 'block';
     document.getElementById('p2BtnGroup').style.display = 'flex';
   }
+  resetGameStats();
 }
 
 let audioCtx, distortionNode;
@@ -381,8 +398,8 @@ const physicsQuizPool = [
 let p1X = 150, p1Dir = 1, p1Hp = 5, p1Active = true, p1Ammo = 20;
 let p2X = 750, p2Dir = -1, p2Hp = 5, p2Active = true, p2Ammo = 20;
 
-let p1Heli = { active: false, x: 150, y: 75, dir: 1, hp: 10 };
-let p2Heli = { active: false, x: 750, y: 75, dir: -1, hp: 10 };
+let p1Heli = { active: false, x: 150, y: 75, dir: 1, hp: 10, ammo: 10 };
+let p2Heli = { active: false, x: 750, y: 75, dir: -1, hp: 10, ammo: 10 };
 
 let p1Mode = 'tank', p2Mode = 'tank';
 let p1Params = { tank: { angle: 45, speed: 70, moveSpeed: 1.5 }, heli: { angle: 15, speed: 60, moveSpeed: 2.2 } };
@@ -395,7 +412,20 @@ let currentQuizItem = null;
 let firstTryCorrect = true;
 let aiShootTimer = 0;
 
+function resetGameStats() {
+  p1Hp = 5; p1Active = true; p1X = 150; p1Ammo = 20;
+  p2Hp = 5; p2Active = true; p2X = 750; p2Ammo = 20;
+  
+  p1Heli.active = false; 
+  p2Heli.active = false;
+
+  setP1Mode('tank');
+  setP2Mode('tank');
+  updateHpDisplay();
+}
+
 function setP1Mode(mode) {
+  if (mode === 'heli' && !p1Heli.active) return;
   p1Mode = mode;
   document.getElementById('p1TabTank').classList.toggle('active', mode === 'tank');
   document.getElementById('p1TabHeli').classList.toggle('active', mode === 'heli');
@@ -413,6 +443,7 @@ function setP1Mode(mode) {
 }
 
 function setP2Mode(mode) {
+  if (mode === 'heli' && !p2Heli.active) return;
   p2Mode = mode;
   document.getElementById('p2TabTank').classList.toggle('active', mode === 'tank');
   document.getElementById('p2TabHeli').classList.toggle('active', mode === 'heli');
@@ -488,21 +519,27 @@ document.getElementById('p2FireBtn').addEventListener('click', () => {
 function fireP1Heli() {
   initAudio();
   if (audioCtx.state === 'suspended') audioCtx.resume();
-  if (p1Heli.active) {
+  if (p1Heli.active && p1Heli.ammo > 0) {
+    p1Heli.ammo--;
+    updateHpDisplay();
     const rad = p1Params.heli.angle * Math.PI / 180;
-    const sp = p1Params.heli.speed * 0.15;
-    p1Projectiles.push({ x: p1Heli.x + 20, y: p1Heli.y, vx: Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: true });
+    const sp = p1Params.heli.speed * (0.15 + (playerWeaponTier * 0.03));
+    p1Projectiles.push({ x: p1Heli.x + 20, y: p1Heli.y, vx: Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: true, tier: playerWeaponTier });
     playShootSound();
+  } else if (p1Heli.ammo <= 0) {
+    triggerActionQuiz('ammo_refill', 1);
   }
 }
 
 function fireP2Heli() {
   initAudio();
   if (audioCtx.state === 'suspended') audioCtx.resume();
-  if (p2Heli.active) {
+  if (p2Heli.active && p2Heli.ammo > 0) {
+    p2Heli.ammo--;
+    updateHpDisplay();
     const rad = p2Params.heli.angle * Math.PI / 180;
     const sp = p2Params.heli.speed * 0.15;
-    p2Projectiles.push({ x: p2Heli.x - 20, y: p2Heli.y, vx: -Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: true });
+    p2Projectiles.push({ x: p2Heli.x - 20, y: p2Heli.y, vx: -Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: true, tier: 1 });
     playShootSound();
   }
 }
@@ -519,17 +556,20 @@ function fireP1() {
   const pivotX = p1X, pivotY = GROUND_Y - 25, barrelLength = 50;
   const muzzleX = pivotX + Math.cos(rad) * barrelLength;
   const muzzleY = pivotY - Math.sin(rad) * barrelLength;
-  const sp = p1Params.tank.speed * 0.15;
+  const sp = p1Params.tank.speed * (0.15 + (playerWeaponTier * 0.04));
 
-  p1Projectiles.push({ x: muzzleX, y: muzzleY, vx: Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: false });
+  p1Projectiles.push({ x: muzzleX, y: muzzleY, vx: Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: false, tier: playerWeaponTier });
   explosions.push({ x: muzzleX, y: muzzleY, t: 0, maxT: 10, size: 20 });
   playShootSound();
 }
 
 function fireP2() {
   if (p2Ammo <= 0) {
-    if (gameMode === 'pvp') triggerActionQuiz('ammo_refill', 2);
-    else p2Ammo = 20; 
+    if (gameMode === 'pvp') {
+      triggerActionQuiz('ammo_refill', 2);
+    } else {
+      p2Ammo = 20; 
+    }
     return;
   }
   p2Ammo--;
@@ -542,13 +582,13 @@ function fireP2() {
     const dx = p1X - p2X;
     const dy = (GROUND_Y - 20) - (GROUND_Y - 25);
     const g = 0.2;
-    speedVal = 75 + Math.random() * 15;
+    speedVal = (70 + (aiStage * 4)) + Math.random() * 10;
     const v = speedVal * 0.15;
     const v2 = v * v;
     const term = v2 * v2 - g * (g * (dx * dx) + 2 * dy * v2);
     if (term >= 0) {
       const rad = Math.atan((v2 - Math.sqrt(term)) / (g * Math.abs(dx)));
-      angleDeg = (rad * 180 / Math.PI) + (Math.random() * 8 - 4);
+      angleDeg = (rad * 180 / Math.PI) + (Math.random() * 4 - 2);
       if (isNaN(angleDeg) || angleDeg < 10) angleDeg = 40 + Math.random() * 20;
     } else {
       angleDeg = 45 + Math.random() * 10;
@@ -558,13 +598,18 @@ function fireP2() {
     speedVal = p2Params.tank.speed;
   }
 
+  let fireXPos = p2X;
+  if (aiStage === 2 && p2Heli.active && Math.random() < 0.5) {
+    fireXPos = p2X - 50; // AI dengan 2 tank representasi posisi
+  }
+
   const rad = angleDeg * Math.PI / 180;
-  const pivotX = p2X, pivotY = GROUND_Y - 25, barrelLength = 50;
+  const pivotX = fireXPos, pivotY = GROUND_Y - 25, barrelLength = 50;
   const muzzleX = pivotX - Math.cos(rad) * barrelLength;
   const muzzleY = pivotY - Math.sin(rad) * barrelLength;
   const sp = speedVal * 0.15;
 
-  p2Projectiles.push({ x: muzzleX, y: muzzleY, vx: -Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: false });
+  p2Projectiles.push({ x: muzzleX, y: muzzleY, vx: -Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: false, tier: 1 });
   explosions.push({ x: muzzleX, y: muzzleY, t: 0, maxT: 10, size: 20 });
   playShootSound();
 }
@@ -577,11 +622,11 @@ function triggerActionQuiz(type, playerNum) {
   
   const title = playerNum === 1 ? "PEMAIN 1: " : "PEMAIN 2: ";
   if (type === 'ammo_refill') {
-    document.getElementById('actionQuizTitle').textContent = title + "AMUNISI MERIAM HABIS (0/20)";
-    document.getElementById('actionQuizSubtitle').textContent = "Jawab benar langsung dapat 20 peluru baru. Jika salah, jawab sampai benar (bonus 10 peluru).";
+    document.getElementById('actionQuizTitle').textContent = title + "AMUNISI HABIS";
+    document.getElementById('actionQuizSubtitle').textContent = "Jawab benar langsung: 10 peluru tank + 10 peluru helikopter. Jika salah, ulang sampai benar (dapat 10 peluru tank).";
   } else {
-    document.getElementById('actionQuizTitle').textContent = title + "FASILITAS HANCUR TOTAL!";
-    document.getElementById('actionQuizSubtitle').textContent = "Jawab benar pada percobaan pertama untuk bonus HELIKOPTER! Jika salah, tank tetap dipulihkan setelah jawaban benar.";
+    document.getElementById('actionQuizTitle').textContent = title + "TANK HANCUR (5x TERTEMBAK)";
+    document.getElementById('actionQuizSubtitle').textContent = "Jawab benar langsung di percobaan pertama: Pulih tank (10 peluru) + Helikopter aktif (10 peluru). Jika salah, jawab sampai benar untuk pulih 10 peluru tank.";
   }
   document.getElementById('actionQuizModal').style.display = 'flex';
 }
@@ -596,19 +641,29 @@ function answerActionQuiz(choice) {
   const feedbackEl = document.getElementById('actionQuizFeedback');
   if (choice === currentQuizItem.answer) {
     if (firstTryCorrect) {
-      feedbackEl.innerHTML = `<span style="color:#4ade80;">✔ Jawaban Benar! ${currentQuizItem.explanation}</span>`;
+      feedbackEl.innerHTML = `<span style="color:#4ade80;">✔ Benar di Percobaan Pertama! Bonus Maksimal (Tank 10 + Heli 10). ${currentQuizItem.explanation}</span>`;
       setTimeout(() => {
         document.getElementById('actionQuizModal').style.display = 'none';
         if (currentActionType === 'ammo_refill') {
-          if (targetPlayerForQuiz === 1) p1Ammo += 20; else p2Ammo += 20;
+          if (targetPlayerForQuiz === 1) { 
+            p1Ammo += 10; 
+            p1Heli.active = true; p1Heli.ammo = 10; 
+            document.getElementById('p1TabHeli').style.display = 'block'; 
+          } else { 
+            p2Ammo += 10; 
+            p2Heli.active = true; p2Heli.ammo = 10; 
+            document.getElementById('p2TabHeli').style.display = 'block'; 
+          }
         } else {
           if (targetPlayerForQuiz === 1) {
-            p1Hp = 5; p1Active = true; p1X = 150;
-            p1Heli = { active: true, x: 150, y: 75, dir: 1, hp: 10 };
+            p1Hp = 5; p1Active = true; p1X = 150; p1Ammo = 10; 
+            p1Heli.active = true; p1Heli.hp = 10; p1Heli.ammo = 10;
+            document.getElementById('p1TabHeli').style.display = 'block';
             setP1Mode('tank');
           } else {
-            p2Hp = 5; p2Active = true; p2X = 750;
-            p2Heli = { active: true, x: 750, y: 75, dir: -1, hp: 10 };
+            p2Hp = 5; p2Active = true; p2X = 750; p2Ammo = 10; 
+            p2Heli.active = true; p2Heli.hp = 10; p2Heli.ammo = 10;
+            document.getElementById('p2TabHeli').style.display = 'block';
             setP2Mode('tank');
           }
         }
@@ -621,8 +676,8 @@ function answerActionQuiz(choice) {
         if (currentActionType === 'ammo_refill') {
           if (targetPlayerForQuiz === 1) p1Ammo += 10; else p2Ammo += 10;
         } else {
-          if (targetPlayerForQuiz === 1) { p1Hp = 5; p1Active = true; p1X = 150; setP1Mode('tank'); }
-          else { p2Hp = 5; p2Active = true; p2X = 750; setP2Mode('tank'); }
+          if (targetPlayerForQuiz === 1) { p1Hp = 5; p1Active = true; p1X = 150; p1Ammo = 10; setP1Mode('tank'); }
+          else { p2Hp = 5; p2Active = true; p2X = 750; p2Ammo = 10; setP2Mode('tank'); }
         }
         updateHpDisplay();
       }, 1500);
@@ -642,22 +697,19 @@ function handleTankHit(tankNum, x, y) {
     p2Hp--;
     updateHpDisplay();
     if (p2Hp <= 0) {
-      // Cek apakah HELIKOPTER P2 masih aktif. Jika masih aktif, tank hancur tapi kuis belum muncul sampai helikopter juga hancur.
-      if (!p2Heli.active) {
-        createMegaDestruction(x, y);
-        p2Active = false;
-        if (gameMode === 'pvp') {
-          setTimeout(() => { triggerActionQuiz('respawn', 2); }, 800);
-        } else {
-          setTimeout(() => {
-            p2Hp = 5; p2Active = true; p2X = 750;
-            p2Ammo = 20;
-            updateHpDisplay();
-          }, 1200);
-        }
+      createMegaDestruction(x, y);
+      p2Active = false;
+      defeatedPlayerNum = 2;
+      
+      if (gameMode === 'pvp') {
+        setTimeout(() => { triggerActionQuiz('respawn', 2); }, 800);
       } else {
-        createNormalExplosion(x, y);
-        p2Active = false; // Tank hancur, tapi helikopter masih ada
+        // AI Kalah -> Game Over & Memicu Kuis untuk Naik Level / Tahap AI
+        setTimeout(() => {
+          document.getElementById('gameOverTitle').textContent = `🏆 AI KALAH (TAHAP ${aiStage} SELESAI)`;
+          document.getElementById('gameOverText').textContent = `AI kalah dan Game Over! Jawab kuis fisika sampai benar untuk naik tingkat berikutnya.`;
+          document.getElementById('gameOverModal').style.display = 'flex';
+        }, 1000);
       }
     } else {
       playHitSound();
@@ -667,15 +719,20 @@ function handleTankHit(tankNum, x, y) {
     p1Hp--;
     updateHpDisplay();
     if (p1Hp <= 0) {
-      // Kuis P1 muncul hanya jika Tank DAN Helikopter P1 sudah hancur total
-      if (!p1Heli.active) {
-        createMegaDestruction(x, y);
-        p1Active = false;
-        document.getElementById('p1HeliFireBtn').style.display = 'none';
+      createMegaDestruction(x, y);
+      p1Active = false;
+      document.getElementById('p1HeliFireBtn').style.display = 'none';
+      defeatedPlayerNum = 1;
+
+      if (gameMode === 'pvp') {
         setTimeout(() => { triggerActionQuiz('respawn', 1); }, 800);
       } else {
-        createNormalExplosion(x, y);
-        p1Active = false;
+        // Pemain Kalah dari AI -> Game Over & Memicu Kuis untuk Pulih / Progres
+        setTimeout(() => {
+          document.getElementById('gameOverTitle').textContent = "💀 GAME OVER - DIKALAHKAN AI";
+          document.getElementById('gameOverText').textContent = "Tank pertahanan hancur! Jawab kuis fisika sampai benar untuk memulihkan keadaan dan lanjut.";
+          document.getElementById('gameOverModal').style.display = 'flex';
+        }, 1000);
       }
     } else {
       playHitSound();
@@ -684,9 +741,34 @@ function handleTankHit(tankNum, x, y) {
   }
 }
 
+function triggerGameOverQuiz() {
+  document.getElementById('gameOverModal').style.display = 'none';
+  
+  if (gameMode === 'ai' && defeatedPlayerNum === 2) {
+    // AI yang kalah, pemain menjawab kuis untuk naik level/tahap sesuai aturan baru
+    if (aiStage < 3) {
+      aiStage++;
+      playerWeaponTier++;
+    } else {
+      aiStage = 1; // Selesai siklus, kembali atau reset
+      playerWeaponTier = 3;
+    }
+  }
+  
+  triggerActionQuiz('respawn', defeatedPlayerNum || 1);
+}
+
+function restartGame() {
+  aiStage = 1;
+  playerWeaponTier = 1;
+  document.getElementById('gameOverModal').style.display = 'none';
+  document.getElementById('p2HeaderTitle').textContent = 'AI LAWAN (TAHAP 1)';
+  resetGameStats();
+}
+
 function updateHpDisplay() {
-  p1HpText.textContent = `HP P1: ${p1Active ? '❤️'.repeat(p1Hp) + '🖤'.repeat(5 - p1Hp) : '❌'} | Peluru: 🚀 ${p1Ammo}/20`;
-  const p2Label = gameMode === 'ai' ? 'AI' : 'P2';
+  p1HpText.textContent = `HP P1: ${p1Active ? '❤️'.repeat(p1Hp) + '🖤'.repeat(5 - p1Hp) : '❌'} | Peluru: 🚀 ${p1Ammo}/20 (Tier ${playerWeaponTier})`;
+  const p2Label = gameMode === 'ai' ? `AI (Tahap ${aiStage})` : 'P2';
   p2HpText.textContent = `HP ${p2Label}: ${p2Active ? '❤️'.repeat(p2Hp) + '🖤'.repeat(5 - p2Hp) : '❌'} | Peluru: 🚀 ${p2Ammo}/20`;
   
   document.getElementById('p1HeliFireBtn').style.display = (p1Mode === 'heli' && p1Heli.active) ? 'block' : 'none';
@@ -773,7 +855,8 @@ function drawTankP1(x) {
 
   const rad = p1Params.tank.angle * Math.PI / 180;
   ctx.save(); ctx.translate(x, y - 5); ctx.rotate(-rad);
-  ctx.fillStyle = '#2e4a2e'; ctx.fillRect(0, -4, 45, 8);
+  ctx.fillStyle = playerWeaponTier >= 3 ? '#eab308' : (playerWeaponTier === 2 ? '#3b82f6' : '#2e4a2e'); 
+  ctx.fillRect(0, -4, 45 + (playerWeaponTier * 5), 8 + playerWeaponTier);
   ctx.restore();
 }
 
@@ -791,6 +874,13 @@ function drawCannonP2(x) {
     ctx.beginPath(); ctx.arc(x + (Math.random()*10 - 5), y - 25, 8 + Math.random()*5, 0, Math.PI*2); ctx.fill();
   }
 
+  // Jika tahap AI 2, gambar tambahan tank kedua AI
+  if (gameMode === 'ai' && aiStage === 2) {
+    ctx.fillStyle = '#5f3a3a'; 
+    ctx.beginPath(); ctx.roundRect(x - 115, y - 5, 70, 22, 5); ctx.fill();
+    ctx.fillStyle = '#7a4a4a'; ctx.beginPath(); ctx.arc(x - 80, y - 5, 14, Math.PI, 0); ctx.fill();
+  }
+
   const rad = 45 * Math.PI / 180;
   ctx.save(); ctx.translate(x, y - 5); ctx.rotate(rad);
   ctx.fillStyle = '#222'; ctx.fillRect(-45, -4, 45, 8);
@@ -802,10 +892,10 @@ function drawCannonball(p, color) {
   ctx.save();
   p.trail.forEach((t, i) => {
     ctx.fillStyle = color;
-    ctx.beginPath(); ctx.arc(t.x, t.y, 4 * (i/p.trail.length), 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(t.x, t.y, (4 + (p.tier || 1)) * (i/p.trail.length), 0, Math.PI * 2); ctx.fill();
   });
-  ctx.fillStyle = p.isHeliShot ? '#a855f7' : '#fff'; 
-  ctx.beginPath(); ctx.arc(p.x, p.y, p.isHeliShot ? 6 : 5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = p.isHeliShot ? '#a855f7' : (p.tier >= 3 ? '#facc15' : '#fff'); 
+  ctx.beginPath(); ctx.arc(p.x, p.y, (p.isHeliShot ? 6 : 5) + (p.tier ? p.tier - 1 : 0), 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 }
 
@@ -826,21 +916,30 @@ function update() {
 
   if (gameMode === 'ai' && p2Active) {
     aiShootTimer++;
-    if (aiShootTimer > 130) {
+    let fireInterval = Math.max(50, 110 - (aiStage * 15));
+    if (aiShootTimer > fireInterval) {
       aiShootTimer = 0;
-      fireP2();
+      if (aiStage >= 2 && p2Heli.active && Math.random() < 0.6) {
+        const rad = (15 + Math.random() * 20) * Math.PI / 180;
+        const sp = (65 + aiStage * 6) * 0.15;
+        p2Projectiles.push({ x: p2Heli.x - 20, y: p2Heli.y, vx: -Math.cos(rad)*sp, vy: -Math.sin(rad)*sp, trail: [], isHeliShot: true, tier: 1 });
+        playShootSound();
+      } else {
+        fireP2();
+      }
     }
   }
 
   if (p1Heli.active) {
     p1Heli.x += p1Heli.dir * p1Params.heli.moveSpeed;
-    if (p1Heli.x > 400) p1Heli.dir = -1;
+    let maxRange = (aiStage === 3 ? 850 : 400); // Tahap 3: Helikopter sanggup terbang menjelajah ke daerah lawan
+    if (p1Heli.x > maxRange) p1Heli.dir = -1;
     if (p1Heli.x < 50) p1Heli.dir = 1;
   }
   if (p2Heli.active) {
     p2Heli.x += p2Heli.dir * p2Params.heli.moveSpeed;
     if (p2Heli.x > 850) p2Heli.dir = -1;
-    if (p2Heli.x < 500) p2Heli.dir = 1;
+    if (p2Heli.x < (aiStage === 3 ? 50 : 500)) p2Heli.dir = 1;
   }
 
   // Update Peluru P1
@@ -860,10 +959,6 @@ function update() {
         p2Heli.active = false;
         createMegaDestruction(p2Heli.x, p2Heli.y);
         document.getElementById('p2HeliFireBtn').style.display = 'none';
-        // Cek jika Tank P2 juga sudah hancur, picu kuis respawn total
-        if (!p2Active && gameMode === 'pvp') {
-          setTimeout(() => { triggerActionQuiz('respawn', 2); }, 800);
-        }
       }
       hit = true;
     } else if (p2Active && Math.hypot(p.x - p2X, p.y - (GROUND_Y - 20)) < 35) {
@@ -893,9 +988,6 @@ function update() {
         p1Heli.active = false;
         createMegaDestruction(p1Heli.x, p1Heli.y);
         document.getElementById('p1HeliFireBtn').style.display = 'none';
-        if (!p1Active) {
-          setTimeout(() => { triggerActionQuiz('respawn', 1); }, 800);
-        }
       }
       hit = true;
     } else if (p1Active && Math.hypot(p.x - p1X, p.y - (GROUND_Y - 20)) < 35) {
